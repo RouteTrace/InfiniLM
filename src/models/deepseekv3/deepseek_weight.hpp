@@ -1,7 +1,7 @@
-#ifndef JIUGE_WEIGHT_HPP
-#define JIUGE_WEIGHT_HPP
+#ifndef DEEPSEEKV3_WEIGHT_HPP
+#define DEEPSEEKV3_WEIGHT_HPP
 
-#include "jiuge_impl.hpp"
+#include "deepseek_impl.hpp"
 
 #include <cmath>
 inline std::shared_ptr<Tensor> getInEmbd(

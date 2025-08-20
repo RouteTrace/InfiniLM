@@ -1,5 +1,5 @@
-#ifndef JIUGE_IMPL_H
-#define JIUGE_IMPL_H
+#ifndef DEEPSEEKV3_IMPL_H
+#define DEEPSEEKV3_IMPL_H
 
 #include "infinicore_infer.h"
 
@@ -52,8 +52,8 @@ struct InferRequest {
     void *logits;
 };
 
-struct JiugeModel {
-    JiugeMeta meta;
+struct DeepseekV3Model {
+    DeepseekV3Meta meta;
     infiniDevice_t device;
     std::vector<int> dev_ids;
     std::vector<DeviceResource> dev_resources;
@@ -61,7 +61,7 @@ struct JiugeModel {
     std::vector<std::thread> threads;
     InferRequest req;
 
-    JiugeModel(const JiugeMeta *, const JiugeWeights *, infiniDevice_t device, std::vector<int> device_ids);
+    DeepseekV3Model(const DeepseekV3Meta *, const DeepseekV3Weights *, infiniDevice_t device, std::vector<int> device_ids);
 };
 
 struct KVCache {

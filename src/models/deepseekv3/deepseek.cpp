@@ -20,7 +20,7 @@ void createDeviceResource(DeviceResource *rsrc, const DeepseekV3Meta *meta,
     infiniopCreateHandle(&handle);
     infinirtStream_t stream;
     infinirtStreamCreate(&stream);
-
+    // TODO: support quantization
     std::vector<std::shared_ptr<Tensor>> w_attn_norm, w_attn_qkv, b_attn_qkv, w_attn_out,
         w_ffn_norm, w_ffn_gate_up, w_ffn_down;
     for (size_t layer = 0; layer < meta->nlayer; layer++) {

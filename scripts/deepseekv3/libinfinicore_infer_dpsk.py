@@ -70,28 +70,16 @@ class DeepseekV3MetaCStruct(ctypes.Structure):
         ("kv_lora_rank", c_size_t),
     ]
 
-# 1. 创建对应 QuantizedLinearWeights 的辅助类
-class QuantizedLinearWeights(ctypes.Structure):
-    """
-    对应C语言中的 QuantizedLinearWeights 结构体。
-    用于封装一个AWQ量化线性层的三个权重组件。
-    """
-    _fields_ = [
-        ("qweight", c_void_p),
-        ("qzeros", c_void_p),
-        ("scales", c_void_p),
-    ]
 
-# 2. 创建主类，对应 DeepseekV3AWQWeights
 class DeepseekV3WeightsCStruct(ctypes.Structure):
     """
-    对应C语言中的 DeepseekV3AWQWeights 主结构体。
+    对应C语言中扁平化设计的 DeepseekV3 AWQ 权重结构体。
+    所有量化层的权重组件 (qweight, qzeros, scales) 都被展开。
     """
     _fields_ = [
         # --- 元数据 ---
         ("nlayer", c_size_t),
-        ("nexpert", c_size_t),
-        ("dt_non_quant", DataType),
+        ("dt_origin", DataType),
         ("dt_quant", DataType),
         ("dt_scale", DataType),
         ("transpose_linear_weights", c_int),
@@ -104,41 +92,81 @@ class DeepseekV3WeightsCStruct(ctypes.Structure):
         # --- 每层的权重 ---
         
         # -- Attention 模块 --
-        # C type: const void *const *attn_norm;
-        # Python type: POINTER(c_void_p) 表示一个 c_void_p 的数组
-        ("attn_norm", POINTER(c_void_p)),
+        ("attn_input_layernorm", POINTER(c_void_p)),
         
-        # C type: const QuantizedLinearWeights *const *attn_q_a_proj;
-        # Python type: POINTER(QuantizedLinearWeights) 表示一个 QuantizedLinearWeights 结构体的数组
-        ("attn_q_a_proj", POINTER(QuantizedLinearWeights)),
-        ("attn_q_b_proj", POINTER(QuantizedLinearWeights)),
-        ("attn_kv_a_proj", POINTER(QuantizedLinearWeights)),
-        ("attn_kv_b_proj", POINTER(QuantizedLinearWeights)),
-        ("attn_o_proj", POINTER(QuantizedLinearWeights)),
+        # attn_q_a_proj (展开)
+        ("attn_q_a_proj_qweight", POINTER(c_void_p)),
+        ("attn_q_a_proj_qzeros", POINTER(c_void_p)),
+        ("attn_q_a_proj_scales", POINTER(c_void_p)),
+        
+        # attn_q_b_proj (展开)
+        ("attn_q_b_proj_qweight", POINTER(c_void_p)),
+        ("attn_q_b_proj_qzeros", POINTER(c_void_p)),
+        ("attn_q_b_proj_scales", POINTER(c_void_p)),
 
-        # -- FFN/MoE 模块 --
+        # attn_kv_a_proj (展开)
+        ("attn_kv_a_proj_qweight", POINTER(c_void_p)),
+        ("attn_kv_a_proj_qzeros", POINTER(c_void_p)),
+        ("attn_kv_a_proj_scales", POINTER(c_void_p)),
+        
+        # attn_kv_b_proj (展开)
+        ("attn_kv_b_proj_qweight", POINTER(c_void_p)),
+        ("attn_kv_b_proj_qzeros", POINTER(c_void_p)),
+        ("attn_kv_b_proj_scales", POINTER(c_void_p)),
+
+        # attn_o_proj (展开)
+        ("attn_o_proj_qweight", POINTER(c_void_p)),
+        ("attn_o_proj_qzeros", POINTER(c_void_p)),
+        ("attn_o_proj_scales", POINTER(c_void_p)),
+
+        ("q_a_layernorm", POINTER(c_void_p)),
+        ("kv_a_layernorm", POINTER(c_void_p)),
         ("post_attn_norm", POINTER(c_void_p)),
 
+        # -- FFN/MoE 模块 --
         # -- 对于非MoE层 (Dense FFN) --
-        ("ffn_gate_proj", POINTER(QuantizedLinearWeights)),
-        ("ffn_up_proj", POINTER(QuantizedLinearWeights)),
-        ("ffn_down_proj", POINTER(QuantizedLinearWeights)),
+        ("ffn_gate_proj_qweight", POINTER(c_void_p)),
+        ("ffn_gate_proj_qzeros", POINTER(c_void_p)),
+        ("ffn_gate_proj_scales", POINTER(c_void_p)),
+        
+        ("ffn_up_proj_qweight", POINTER(c_void_p)),
+        ("ffn_up_proj_qzeros", POINTER(c_void_p)),
+        ("ffn_up_proj_scales", POINTER(c_void_p)),
+
+        ("ffn_down_proj_qweight", POINTER(c_void_p)),
+        ("ffn_down_proj_qzeros", POINTER(c_void_p)),
+        ("ffn_down_proj_scales", POINTER(c_void_p)),
 
         # -- 对于MoE层 --
         ("moe_gate_weight", POINTER(c_void_p)),
         ("moe_gate_bias", POINTER(c_void_p)),
         
-        ("moe_shared_gate_proj", POINTER(QuantizedLinearWeights)),
-        ("moe_shared_up_proj", POINTER(QuantizedLinearWeights)),
-        ("moe_shared_down_proj", POINTER(QuantizedLinearWeights)),
+        # Shared Experts (展开)
+        ("moe_shared_gate_proj_qweight", POINTER(c_void_p)),
+        ("moe_shared_gate_proj_qzeros", POINTER(c_void_p)),
+        ("moe_shared_gate_proj_scales", POINTER(c_void_p)),
         
-        # -- Routed Experts --
-        # C type: const QuantizedLinearWeights *const *const *moe_expert_gate_proj;
-        # 这是一个指向 [QuantizedLinearWeights*] 数组的指针，所以是两级指针
-        # Python type: POINTER(POINTER(QuantizedLinearWeights))
-        ("moe_expert_gate_proj", POINTER(POINTER(QuantizedLinearWeights))),
-        ("moe_expert_up_proj", POINTER(POINTER(QuantizedLinearWeights))),
-        ("moe_expert_down_proj", POINTER(POINTER(QuantizedLinearWeights))),
+        ("moe_shared_up_proj_qweight", POINTER(c_void_p)),
+        ("moe_shared_up_proj_qzeros", POINTER(c_void_p)),
+        ("moe_shared_up_proj_scales", POINTER(c_void_p)),
+        
+        ("moe_shared_down_proj_qweight", POINTER(c_void_p)),
+        ("moe_shared_down_proj_qzeros", POINTER(c_void_p)),
+        ("moe_shared_down_proj_scales", POINTER(c_void_p)),
+        
+        # -- Routed Experts (展开) --
+        # 每个组件现在都是一个二级指针数组
+        ("moe_expert_gate_proj_qweight", POINTER(POINTER(c_void_p))),
+        ("moe_expert_gate_proj_qzeros", POINTER(POINTER(c_void_p))),
+        ("moe_expert_gate_proj_scales", POINTER(POINTER(c_void_p))),
+        
+        ("moe_expert_up_proj_qweight", POINTER(POINTER(c_void_p))),
+        ("moe_expert_up_proj_qzeros", POINTER(POINTER(c_void_p))),
+        ("moe_expert_up_proj_scales", POINTER(POINTER(c_void_p))),
+        
+        ("moe_expert_down_proj_qweight", POINTER(POINTER(c_void_p))),
+        ("moe_expert_down_proj_qzeros", POINTER(POINTER(c_void_p))),
+        ("moe_expert_down_proj_scales", POINTER(POINTER(c_void_p))),
     ]
 
 
