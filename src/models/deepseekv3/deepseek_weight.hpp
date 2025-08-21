@@ -5,22 +5,22 @@
 
 #include <cmath>
 inline std::shared_ptr<Tensor> getInEmbd(
-    JiugeMeta const *meta,
-    JiugeWeights const *w) {
+    DeepseekV3Meta const *meta,
+    DeepseekV3Weights const *w) {
     auto shape = std::vector<size_t>({meta->dvoc, meta->d});
     return Tensor::weight((char *)w->input_embd, meta->dt_logits, shape);
 }
 
 inline std::shared_ptr<Tensor> getOutNorm(
-    JiugeMeta const *meta,
-    JiugeWeights const *w) {
+    DeepseekV3Meta const *meta,
+    DeepseekV3Weights const *w) {
     auto shape = std::vector<size_t>({meta->d});
     return Tensor::weight((char *)w->output_norm, w->dt_norm, shape);
 }
 
 inline std::shared_ptr<Tensor> getOutEmbd(
-    JiugeMeta const *meta,
-    JiugeWeights const *w) {
+    DeepseekV3Meta const *meta,
+    DeepseekV3Weights const *w) {
     if (w->transpose_linear_weights != 0) {
         auto shape = std::vector<size_t>({meta->dvoc, meta->d});
         return Tensor::weight((char *)w->output_embd, meta->dt_logits, shape)
@@ -32,16 +32,16 @@ inline std::shared_ptr<Tensor> getOutEmbd(
 }
 
 inline std::shared_ptr<Tensor> getAttnNorm(
-    JiugeMeta const *meta,
-    JiugeWeights const *w,
+    DeepseekV3Meta const *meta,
+    DeepseekV3Weights const *w,
     size_t layer) {
     auto shape = std::vector<size_t>({meta->d});
     return Tensor::weight((char *)(w->attn_norm[layer]), w->dt_norm, shape);
 }
 
 inline std::shared_ptr<Tensor> getAttnQKV(
-    JiugeMeta const *meta,
-    JiugeWeights const *w,
+    DeepseekV3Meta const *meta,
+    DeepseekV3Weights const *w,
     size_t layer, size_t idev, size_t ndev) {
     auto nkvh = meta->nkvh;
     auto nh = meta->nh;
@@ -59,8 +59,8 @@ inline std::shared_ptr<Tensor> getAttnQKV(
 }
 
 inline std::shared_ptr<Tensor> getAttnQKVBias(
-    JiugeMeta const *meta,
-    JiugeWeights const *w,
+    DeepseekV3Meta const *meta,
+    DeepseekV3Weights const *w,
     size_t layer, size_t idev, size_t ndev) {
     auto nkvh = meta->nkvh;
     auto nh = meta->nh;
@@ -70,8 +70,8 @@ inline std::shared_ptr<Tensor> getAttnQKVBias(
     return Tensor::weight((char *)(w->attn_qkv_b[layer]) + offset, w->dt_mat, shape);
 }
 
-inline std::shared_ptr<Tensor> getAttnO(JiugeMeta const *meta,
-                                        JiugeWeights const *w, size_t layer,
+inline std::shared_ptr<Tensor> getAttnO(DeepseekV3Meta const *meta,
+                                        DeepseekV3Weights const *w, size_t layer,
                                         size_t idev, size_t ndev) {
     auto nh = meta->nh;
     auto dh = meta->dh;
@@ -88,16 +88,16 @@ inline std::shared_ptr<Tensor> getAttnO(JiugeMeta const *meta,
 }
 
 inline std::shared_ptr<Tensor> getFFNNorm(
-    JiugeMeta const *meta,
-    JiugeWeights const *w,
+    DeepseekV3Meta const *meta,
+    DeepseekV3Weights const *w,
     size_t layer) {
     auto shape = std::vector<size_t>({meta->d});
     return Tensor::weight((char *)(w->ffn_norm[layer]), w->dt_norm, shape);
 }
 
 inline std::shared_ptr<Tensor> getFFNGateUp(
-    JiugeMeta const *meta,
-    JiugeWeights const *w,
+    DeepseekV3Meta const *meta,
+    DeepseekV3Weights const *w,
     size_t layer, size_t idev, size_t ndev) {
     auto di = meta->di;
     auto d = meta->d;
@@ -115,8 +115,8 @@ inline std::shared_ptr<Tensor> getFFNGateUp(
 }
 
 inline std::shared_ptr<Tensor> getFFNDown(
-    JiugeMeta const *meta,
-    JiugeWeights const *w,
+    DeepseekV3Meta const *meta,
+    DeepseekV3Weights const *w,
     size_t layer, size_t idev, size_t ndev) {
     auto di = meta->di;
     auto d = meta->d;
@@ -131,7 +131,7 @@ inline std::shared_ptr<Tensor> getFFNDown(
     }
 }
 
-inline std::shared_ptr<Tensor> getSinTable(JiugeMeta const *meta) {
+inline std::shared_ptr<Tensor> getSinTable(DeepseekV3Meta const *meta) {
     auto half_dh = meta->dh / 2;
     auto unit = dsize(meta->dt_logits);
     void *table = std::malloc(meta->dctx * half_dh * unit);
@@ -158,7 +158,7 @@ inline std::shared_ptr<Tensor> getSinTable(JiugeMeta const *meta) {
     return tensor;
 }
 
-inline std::shared_ptr<Tensor> getCosTable(JiugeMeta const *meta) {
+inline std::shared_ptr<Tensor> getCosTable(DeepseekV3Meta const *meta) {
     auto half_dh = meta->dh / 2;
     auto unit = dsize(meta->dt_logits);
     void *table = std::malloc(meta->dctx * half_dh * unit);
