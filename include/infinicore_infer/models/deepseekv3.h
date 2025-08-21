@@ -37,19 +37,16 @@ typedef struct
 } DeepseekV3Meta;
 
 
-// 主权重结构体
 typedef struct
 {
-    // --- 元数据 ---
+
     size_t nlayer;
-    size_t nexpert; // MoE专家数量
-    // 为不同部分定义数据类型
-    infiniDtype_t dt_non_quant; // 用于norm, embedding等非量化部分
-    infiniDtype_t dt_quant;     // 用于qweight和qzeros
-    infiniDtype_t dt_scale;     // 用于scales
+    size_t nexpert; 
+    infiniDtype_t dt_origin; 
+    infiniDtype_t dt_quant;     // qweight和qzeros
+    infiniDtype_t dt_scale;     // scales
     int transpose_linear_weights;
 
-    // --- 顶层权重 (通常非量化) ---
     // [dvoc, d]
     const void *input_embd;
     // [d]
@@ -57,43 +54,79 @@ typedef struct
     // [dvoc, d]
     const void *output_embd;
 
-    // --- 每层的权重 ---
+    // -- Attention --
+    const void *const *attn_input_layernorm; // nlayer * [d]
 
-    // -- Attention 模块 --
-    // LayerNorm
-    const void *const *attn_norm; // nlayer * [d]
-    // LoRA-like 投影
-    const QuantizedLinearWeights *const *attn_q_a_proj;   // nlayer * QuantizedLinearWeights
-    const QuantizedLinearWeights *const *attn_q_b_proj;   // nlayer * QuantizedLinearWeights
-    const QuantizedLinearWeights *const *attn_kv_a_proj;  // nlayer * QuantizedLinearWeights
-    const QuantizedLinearWeights *const *attn_kv_b_proj;  // nlayer * QuantizedLinearWeights
-    // 输出投影
-    const QuantizedLinearWeights *const *attn_o_proj;     // nlayer * QuantizedLinearWeights
+    const void *const *attn_q_a_proj_qweight;   // nlayer * 
+    const void *const *attn_q_a_proj_qzeros;   // nlayer * 
+    const void *const *attn_q_a_proj_scales;   // nlayer * 
+
+    const void *const *q_a_layernorm;   // nlayer * 
+
+    const void *const *attn_q_b_proj_qweight;   // nlayer * 
+    const void *const *attn_q_b_proj_qzeros;   // nlayer * 
+    const void *const *attn_q_b_proj_scales; 
+
+    const void *const *attn_kv_a_proj_qweight;  // nlayer * 
+    const void *const *attn_kv_a_proj_qzeros;  // nlayer * 
+    const void *const *attn_kv_a_proj_scales;  // nlayer * 
+
+    const void *const *attn_kv_b_proj_qweight;  // nlayer * 
+    const void *const *attn_kv_b_proj_qzeros;  // nlayer * 
+    const void *const *attn_kv_b_proj_scales;  // nlayer * 
+
+    const void *const *kv_a_layernorm;  // nlayer * 
+
+    const void *const *attn_o_proj_qweight;     // nlayer * 
+    const void *const *attn_o_proj_qzeros;     // nlayer * 
+    const void *const *attn_o_proj_scales;     // nlayer * 
     
-    // -- FFN/MoE 模块 --
-    // LayerNorm
     const void *const *post_attn_norm; // nlayer * [d]
 
-    // -- 对于非MoE层 (Dense FFN) --
-    const QuantizedLinearWeights *const *ffn_gate_proj;   // nlayer * QuantizedLinearWeights
-    const QuantizedLinearWeights *const *ffn_up_proj;     // nlayer * QuantizedLinearWeights
-    const QuantizedLinearWeights *const *ffn_down_proj;   // nlayer * QuantizedLinearWeights
+    // -- (Dense FFN) --
+    const void *const *ffn_gate_proj_qweight;   // nlayer * 
+    const void *const *ffn_gate_proj_qzeros;   // nlayer * 
+    const void *const *ffn_gate_proj_scales;   // nlayer * 
 
-    // -- 对于MoE层 --
-    // Router (通常非量化)
+    const void *const *ffn_up_proj_qweight;     // nlayer * 
+    const void *const *ffn_up_proj_qzeros;     // nlayer * 
+    const void *const *ffn_up_proj_scales;     // nlayer * 
+
+    const void *const *ffn_down_proj_qweight;   // nlayer * 
+    const void *const *ffn_down_proj_qzeros;   // nlayer * 
+    const void *const *ffn_down_proj_scales;   // nlayer * 
+
+    // -- MoE --
+    // Router 
     const void *const *moe_gate_weight; // nlayer * [nexpert, d]
     const void *const *moe_gate_bias;   // nlayer * [nexpert]
     
     // Shared Experts
-    const QuantizedLinearWeights *const *moe_shared_gate_proj; // nlayer * QuantizedLinearWeights
-    const QuantizedLinearWeights *const *moe_shared_up_proj;   // nlayer * QuantizedLinearWeights
-    const QuantizedLinearWeights *const *moe_shared_down_proj; // nlayer * QuantizedLinearWeights
+    const void *const *moe_shared_gate_proj_qweight; // nlayer * [7168, 256]
+    const void *const *moe_shared_gate_proj_qzeros; // nlayer * [112, 256]
+    const void *const *moe_shared_gate_proj_scales; // nlayer * [112, 2 048]
 
-    // Routed Experts (nlayer * nexpert * QuantizedLinearWeights)
+    const void *const *moe_shared_up_proj_qweight; // nlayer * [7168, 256]
+    const void *const *moe_shared_up_proj_qzeros; // nlayer * [112, 256]
+    const void *const *moe_shared_up_proj_scales; // nlayer * [112, 2 048]
+
+    const void *const *moe_shared_down_proj_qweight; // nlayer * [7168, 256]
+    const void *const *moe_shared_down_proj_qzeros; // nlayer * [112, 256]
+    const void *const *moe_shared_down_proj_scales; // nlayer * [112, 2 048]
+
+    // Routed Experts (nlayer * nexpert * [] )
     // 这是一个三维指针: [层][专家][权重组件]
-    const QuantizedLinearWeights *const *const *moe_expert_gate_proj;
-    const QuantizedLinearWeights *const *const *moe_expert_up_proj;
-    const QuantizedLinearWeights *const *const *moe_expert_down_proj;
+    const void *const *const *moe_expert_gate_proj_qweight;
+    const void *const *const *moe_expert_gate_proj_qzeros;
+    const void *const *const *moe_expert_gate_proj_scales;
+
+    const void *const *const *moe_expert_up_proj_qweight;
+    const void *const *const *moe_expert_up_proj_qzeros;
+    const void *const *const *moe_expert_up_proj_scales;
+
+    const void *const *const *moe_expert_down_proj_qweight;
+    const void *const *const *moe_expert_down_proj_qzeros;
+    const void *const *const *moe_expert_down_proj_scales;
 
 } DeepseekV3Weights;
 //////////////////// APIs ///////////////////////

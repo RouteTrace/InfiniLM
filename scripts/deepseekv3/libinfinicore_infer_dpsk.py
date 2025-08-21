@@ -137,7 +137,7 @@ class DeepseekV3WeightsCStruct(ctypes.Structure):
         ("ffn_down_proj_qzeros", POINTER(c_void_p)),
         ("ffn_down_proj_scales", POINTER(c_void_p)),
 
-        # -- 对于MoE层 --
+        # -- moe gate/score bias --
         ("moe_gate_weight", POINTER(c_void_p)),
         ("moe_gate_bias", POINTER(c_void_p)),
         

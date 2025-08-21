@@ -9,7 +9,7 @@ from libinfinicore_infer_dpsk import (
     DataType,
     DeviceType
 )
-
+import ctypes
 from ctypes import POINTER, c_float, c_int, c_uint, c_void_p, byref
 import os
 from pathlib import Path
@@ -231,7 +231,7 @@ class DeepseekV3WeightsImpl(DeepseekV3WeightsCStruct):
 
         self.transpose_linear_weights = 1 if transpose_weight else 0
         self.nlayer = nlayer
-
+        self.nexpert = meta.n_routed_experts
         input_embd_naming = (
             naming.input_embd()
             if naming.input_embd() in state_dict
@@ -322,17 +322,17 @@ class DeepseekV3WeightsImpl(DeepseekV3WeightsCStruct):
         self.moe_shared_down_proj_scales = self._get_linear_cptr(state_dict, naming, "shared_down_s", torch_dt_scale)
 
         # Router experts
-        self.moe_expert_gate_proj_qweight 
-        self.moe_expert_gate_proj_qzeros
-        self.moe_expert_gate_proj_scales
+        self.moe_expert_gate_proj_qweight = self._get_moe_cptr(state_dict, naming, "expert_gate_q", torch_dt_quant)
+        self.moe_expert_gate_proj_qzeros = self._get_moe_cptr(state_dict, naming, "expert_gate_z", torch_dt_quant)
+        self.moe_expert_gate_proj_scales = self._get_moe_cptr(state_dict, naming, "expert_gate_s", torch_dt_scale)
 
-        self.moe_expert_up_proj_qweight
-        self.moe_expert_up_proj_qzeros
-        self.moe_expert_up_proj_scales
+        self.moe_expert_up_proj_qweight = self._get_moe_cptr(state_dict, naming, "expert_up_q", torch_dt_quant)
+        self.moe_expert_up_proj_qzeros = self._get_moe_cptr(state_dict, naming, "expert_up_z", torch_dt_quant)
+        self.moe_expert_up_proj_scales = self._get_moe_cptr(state_dict, naming, "expert_up_s", torch_dt_scale)
 
-        self.moe_expert_down_proj_qweight
-        self.moe_expert_down_proj_qzeros
-        self.moe_expert_down_proj_scales
+        self.moe_expert_down_proj_qweight = self._get_moe_cptr(state_dict, naming, "expert_down_q", torch_dt_quant)
+        self.moe_expert_down_proj_qzeros = self._get_moe_cptr(state_dict, naming, "expert_down_z", torch_dt_quant)
+        self.moe_expert_down_proj_scales = self._get_moe_cptr(state_dict, naming, "expert_down_s", torch_dt_scale)
 
 
     def _get_linear_cptr(self, param_dict, naming, weight_str, data_type):
@@ -342,4 +342,20 @@ class DeepseekV3WeightsImpl(DeepseekV3WeightsCStruct):
         c_ptr = (c_void_p * self.nlayer)(*target_ptrs)
         return c_ptr
 
-
+    def _get_moe_cptr(self, param_dict, naming, weight_str, data_type):
+        layer_ptrs = []
+        get_prefix_func = getattr(naming, weight_str)
+        for i in range(self.nlayer):
+            expert_ptrs = []
+            for e in range(self.nexpert):
+                # 获取特定层和特定专家的张量
+                
+                # 5. 获取张量并转换数据类型，然后获取数据指针
+                tensor = param_dict[get_prefix_func(i, e)].to(data_type)
+                expert_ptrs.append(tensor.data_ptr())
+            c_expert_ptr = (c_void_p * self.nexpert)(*expert_ptrs)
+            layer_ptrs.append(ctypes.addressof(c_expert_ptr))
+            
+        # POINTER(POINTER(c_void_p))
+        c_ptr = (c_void_p * self.nlayer)(*layer_ptrs)
+        return c_ptr
